@@ -17,4 +17,4 @@ SHOW_PROGRESS_BAR = True  # Set to True to show a progress bar in terminal
 # File Paths
 temp_folder = 'temp/'  # Folder to temporarily store temporary files
 avatar_folder = 'temp/avatars'  # Folder to store profile pictures
-last_processed_file = 'temp/last_processed_message.json'  # File to store the last processed message ID
+temporary_data_file = 'temp/temp.json'  # File to store the last processed message ID

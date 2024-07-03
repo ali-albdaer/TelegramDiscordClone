@@ -31,14 +31,14 @@ class TelegramDiscordBot:
             'last_processed_message_id': message_id,
             'downloaded_profile_pics': {str(k): v for k, v in self.downloaded_profile_pics.items()}
         }
-        with open(last_processed_file, 'w') as file:
+        with open(temporary_data_file, 'w') as file:
             json.dump(data, file)
 
 
     def load_last_processed_data(self):
-        if os.path.exists(last_processed_file):
+        if os.path.exists(temporary_data_file):
             try:
-                with open(last_processed_file, 'r') as file:
+                with open(temporary_data_file, 'r') as file:
                     data = json.load(file)
                     return {int(k): v for k, v in data.get('downloaded_profile_pics', {}).items()}, data.get('last_processed_message_id', 0)
             
