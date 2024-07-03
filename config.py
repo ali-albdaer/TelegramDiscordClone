@@ -5,7 +5,8 @@ telegram_group_id = -1234567890  # Telegram group ID (can be obtained using a bo
 api_id = '12345678'  # Telegram API ID (visit my.telegram.org to get this)
 api_hash = 'abcdef1234567890'  # Telegram API Hash (visit my.telegram.org to get this as well)
 discord_webhook_url = 'https://discord.com/api/webhooks/your-webhook-url'  # Webhook URL for the backup channel
-default_avatar_url = 'https://example.com/default-avatar'  # Default avatar URL for users without a profile picture
+default_avatar_url = 'http.cat/404'  # Default avatar URL for users without a profile picture
+
 
 # Parameters
 IGNORE_VIDEO_FILES = False
