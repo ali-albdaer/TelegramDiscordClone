@@ -4,7 +4,7 @@ TD-Media-Clone is a Python project that utilizes discord.py and telethon librari
 
 ## Installation
 
-1. Clone the repository: `git clone https://github.com/ali-albdaer/TD-Media-Clone.git`
+1. Clone the repository: `git clone https://github.com/ali-albdaer/TelegramDiscordMediaClone.git`
 2. Install the required dependencies: `pip install -r requirements.txt`
 
 ## Configuration
