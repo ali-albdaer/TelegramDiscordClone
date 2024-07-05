@@ -11,7 +11,7 @@ TD-Media-Clone is a Python project that utilizes discord.py and telethon librari
 
 1. Create a Discord channel and a webhook for that channel then obtain the link.
 2. Create a new Telegram app and obtain the API ID and API hash. (visit https://my.telegram.org)
-3. Update the `config.py` file with the obtained credentials and adjust the other parameters as needed.
+3. Create a `config.py` file in the root directory, put the obtained credentials and adjust the other parameters as needed. (see `config_example.py`)
 
 ## Usage
 
