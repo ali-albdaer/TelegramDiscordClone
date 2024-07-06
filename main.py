@@ -58,21 +58,26 @@ class TelegramDiscordBot:
             )
 
             if sender_id not in self.downloaded_profile_pics:
-                if sender.photo:
-                    photos = await self.telegram_client.get_profile_photos(sender)
-                    if photos:
-                        photo = photos[0]
-                        photo_file_name = f'{sender_id}.jpg'
-                        photo_path = os.path.join(avatar_folder, photo_file_name)
-                        if not os.path.exists(photo_path):
-                            await self.telegram_client.download_media(photo, file=photo_path)
-                        message = self.discord_webhook.send(file=File(photo_path), username=f"{username}'s Profile Picture", wait=True)
-                        self.downloaded_profile_pics[sender_id] = message.attachments[0].url
+                if sender.photo and (photos := await self.telegram_client.get_profile_photos(sender)):
+                    photo = photos[0]
+                    photo_file_name = f'{sender_id}.jpg'
+                    photo_path = os.path.join(avatar_folder, photo_file_name)
+                    if not os.path.exists(photo_path):
+                        await self.telegram_client.download_media(photo, file=photo_path)
+                    message = self.discord_webhook.send(file=File(photo_path), username=f"{username}'s Profile Picture", wait=True)
+                    self.downloaded_profile_pics[sender_id] = message.attachments[0].url
+                    
+                else:
+                    fallback_avatar_url = f'https://dummyimage.com/128x128/{sender_id}/000000.png&text={username[0]}'
+                    response = requests.get(fallback_avatar_url)
+
+                    if response.status_code == 200:
+                        self.downloaded_profile_pics[sender_id] = fallback_avatar_url
+
                     else:
                         self.downloaded_profile_pics[sender_id] = default_avatar_url
-                else:
-                    self.discord_webhook.send(default_avatar_url, username=f"{username} Has No Profile Picture.")
-                    self.downloaded_profile_pics[sender_id] = default_avatar_url
+
+                    self.discord_webhook.send(fallback_avatar_url, username=f"{username} Has No Profile Picture.")
 
                 await asyncio.sleep(1.01)
 
