@@ -52,7 +52,19 @@ class TelegramDiscordBot:
         try:
             sender = await message.get_sender()
             sender_id = sender.id
-            username = sender.first_name + ' ' + sender.last_name if sender.last_name else sender.first_name or sender.username or "Unknown"
+            
+            if message.sender:
+                if message.sender.first_name:
+                    username = message.sender.first_name + (' ' + message.sender.last_name if message.sender.last_name else '')
+
+                elif message.sender.username:
+                    username = message.sender.username
+
+                else:  # Could be unnecessary but just in case.
+                    username = 'Unknown User'
+
+            else:
+                username = 'Unknown User'
 
             if sender_id not in self.downloaded_profile_pics:
                 if sender.photo:
