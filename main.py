@@ -66,12 +66,12 @@ class TelegramDiscordBot:
                         photo_path = os.path.join(avatar_folder, photo_file_name)
                         if not os.path.exists(photo_path):
                             await self.telegram_client.download_media(photo, file=photo_path)
-                        message = self.discord_webhook.send(file=File(photo_path), username=f"{username} joined the group.", wait=True)
+                        message = self.discord_webhook.send(file=File(photo_path), username=f"{username}'s Profile Picture", wait=True)
                         self.downloaded_profile_pics[sender_id] = message.attachments[0].url
                     else:
                         self.downloaded_profile_pics[sender_id] = default_avatar_url
                 else:
-                    self.discord_webhook.send(default_avatar_url, username=f"{username} joined the group.")
+                    self.discord_webhook.send(default_avatar_url, username=f"{username} Has No Profile Picture.")
                     self.downloaded_profile_pics[sender_id] = default_avatar_url
 
                 await asyncio.sleep(1.01)
@@ -115,8 +115,8 @@ class TelegramDiscordBot:
 
                 if response.status_code == 429:
                     retry_after = response.json().get('retry_after', 2)  # Default to 2 seconds if not provided
-                    logging.warning(f'Rate limited by Discord. Retrying after {retry_after} seconds...')
-                    asyncio.sleep(retry_after + DISCORD_SLEEP_OFFSET)
+                    logging.warning(f'Rate limited by Discord. Retrying after {retry_after + SLEEP_OFFSET} seconds...')
+                    await asyncio.sleep(retry_after + SLEEP_OFFSET)
 
                 elif response.status_code in {400, 403}:
                     logging.warning(f'[Ignoring message with no content or attachments] Status code: {response.status_code}, Response: {response.text}')
@@ -196,23 +196,36 @@ class TelegramDiscordBot:
                 total_messages = max(latest_message_id - (self.last_processed_message_id or first_message_id), 1)
                 processed_messages = 0
 
-            async for message in self.telegram_client.iter_messages(group_entity, min_id=self.last_processed_message_id, reverse=True):
-                await self.process_message(message)
-                processed_messages += 1
+            batch_size = 100
+            min_id = self.last_processed_message_id
 
-                if SHOW_PROGRESS_BAR:
-                    percantge = round((processed_messages / total_messages) * 100, 2)
-                    print(f'\rProcessed Messages: [{processed_messages} / {total_messages}] [{percantge}%]', end='')
+            while True:
+                messages = await self.telegram_client.get_messages(group_entity, min_id=min_id, limit=batch_size, reverse=True)
+                if not messages:
+                    break
+
+                for message in messages:
+                    await self.process_message(message)
+                    processed_messages += 1
+
+                    if SHOW_PROGRESS_BAR:
+                        if latest_message_id and first_message_id:  # Avoid division by zero for the first message.
+                            percentage = round(((message.id - first_message_id) / (latest_message_id - first_message_id)) * 100, 2)
+                            print(f'\rProcessed Messages: [{message.id - first_message_id} / {latest_message_id - first_message_id}] [{percentage}%]', end='')
+
+                    min_id = message.id
+
+                await asyncio.sleep(1.01)  # Slight delay to prevent rate limiting
 
             if SHOW_PROGRESS_BAR:
                 print()
 
         except errors.FloodWaitError as e:
-            logging.warning(f'Rate limited. Waiting for {e.seconds} seconds...')
-            await asyncio.sleep(e.seconds + TELEGRAM_SLEEP_OFFSET)
+            logging.warning(f'Rate limited by Telegram. Waiting for {e.seconds + SLEEP_OFFSET} seconds...')
+            await asyncio.sleep(e.seconds + SLEEP_OFFSET)
 
         except Exception as e:
-            logging.error(f'[download_and_upload_media] {e}')
+            logging.error(f'[run] {e}')
 
         finally:
             logging.info('Disconnecting from Telegram...')
