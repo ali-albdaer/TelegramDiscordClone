@@ -1,10 +1,10 @@
-# TD-Media-Clone
+# TelegramDiscordClone
 
-TD-Media-Clone is a Python project that utilizes discord.py and telethon libraries to clone messages, including media, from a Telegram group to a specified Discord channel. It achieves this by logging into a Telegram user account, temporarily downloading the messages in chronological order, and then sending them to Discord using a webhook.
+TelegramDiscordClone is a Python project that utilizes discord.py and telethon libraries to clone messages, including media, from a Telegram group to a specified Discord channel. It achieves this by logging into a Telegram user account, temporarily downloading the messages in chronological order, and then sending them to Discord using a webhook.
 
 ## Installation
 
-1. Clone the repository: `git clone https://github.com/ali-albdaer/TelegramDiscordMediaClone.git`
+1. Clone the repository: `git clone https://github.com/ali-albdaer/TelegramDiscordClone.git`
 2. Install the required dependencies: `pip install -r requirements.txt`
 
 ## Configuration
