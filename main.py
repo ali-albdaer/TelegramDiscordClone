@@ -4,20 +4,16 @@ import asyncio
 import json
 import logging
 import requests
-from telethon import TelegramClient, types
+from telethon import TelegramClient, types, errors
 from discord import SyncWebhook, File
 from config import *
 
 
-logging.basicConfig(level=logging.WARNING)  # Change to logging.INFO if you like chaos.
+logging.basicConfig(level=logging.WARNING)  # Change to logging.INFO for more detailed logs.
 
 
-if not os.path.exists('temp'):
-    os.makedirs('temp')
-
-
-if not os.path.exists(avatar_folder):
-    os.makedirs(avatar_folder)
+os.makedirs('temp', exist_ok=True)
+os.makedirs(avatar_folder, exist_ok=True)
 
 
 class TelegramDiscordBot:
@@ -25,7 +21,8 @@ class TelegramDiscordBot:
         self.telegram_client = TelegramClient(f'{telegram_user}.session', api_id, api_hash)
         self.discord_webhook = SyncWebhook.from_url(discord_webhook_url)
         self.downloaded_profile_pics, self.last_processed_message_id = self.load_last_processed_data()
-
+    
+    # Ensures that the last processed message ID is saved in case of a program crash / halt.
     def save_last_processed_data(self, message_id):
         data = {
             'last_processed_message_id': message_id,
@@ -34,53 +31,46 @@ class TelegramDiscordBot:
         with open(temporary_data_file, 'w') as file:
             json.dump(data, file)
 
-
+    # Loads the last processed message ID and downloaded profile pictures from the temporary data file.
     def load_last_processed_data(self):
         if os.path.exists(temporary_data_file):
             try:
                 with open(temporary_data_file, 'r') as file:
                     data = json.load(file)
                     return {int(k): v for k, v in data.get('downloaded_profile_pics', {}).items()}, data.get('last_processed_message_id', 0)
-            
             except json.JSONDecodeError as e:
-                logging.error(f'[in load_last_processed_data]: JSON decode error: {e}')
+                logging.error(f'[load_last_processed_data] JSON decode error: {e}')
                 return {}, 0
         return {}, 0
 
-
+    # Fetches the sender's profile picture and name from the Telegram message.
     async def fetch_sender_details(self, message):
         try:
             sender = await message.get_sender()
-            sender_id = sender.id
+            if not sender:
+                return None, 'Deleted User'
             
-            if message.sender:
-                if message.sender.first_name:
-                    username = message.sender.first_name + (' ' + message.sender.last_name if message.sender.last_name else '')
-
-                elif message.sender.username:
-                    username = message.sender.username
-
-                else:  # Could be unnecessary but just in case.
-                    username = 'Unknown User'
-
-            else:
-                username = 'Unknown User'
+            sender_id = sender.id
+            username = (
+                sender.first_name + (' ' + sender.last_name if sender.last_name else '') if sender.first_name else 
+                sender.username if sender.username else 
+                'Unknown User'
+            )
 
             if sender_id not in self.downloaded_profile_pics:
                 if sender.photo:
                     photos = await self.telegram_client.get_profile_photos(sender)
-                    photo = photos[0]
-
-                    photo_file_name = f'{sender_id}.jpg'
-                    photo_path = os.path.join(avatar_folder, photo_file_name)
-                    
-                    if not os.path.exists(photo_path):
-                        await self.telegram_client.download_media(photo, file=photo_path)
-
-                    message = self.discord_webhook.send(file=File(photo_path), username=f"{username} joined the group.", wait=True)
-                    self.downloaded_profile_pics[sender_id] = message.attachments[0].url
-
-                else: # Get the default profile pic instead
+                    if photos:
+                        photo = photos[0]
+                        photo_file_name = f'{sender_id}.jpg'
+                        photo_path = os.path.join(avatar_folder, photo_file_name)
+                        if not os.path.exists(photo_path):
+                            await self.telegram_client.download_media(photo, file=photo_path)
+                        message = self.discord_webhook.send(file=File(photo_path), username=f"{username} joined the group.", wait=True)
+                        self.downloaded_profile_pics[sender_id] = message.attachments[0].url
+                    else:
+                        self.downloaded_profile_pics[sender_id] = default_avatar_url
+                else:
                     self.discord_webhook.send(default_avatar_url, username=f"{username} joined the group.")
                     self.downloaded_profile_pics[sender_id] = default_avatar_url
 
@@ -89,35 +79,32 @@ class TelegramDiscordBot:
             return self.downloaded_profile_pics[sender_id], username
         
         except Exception as e:
-            logging.error(f'[in fetch_sender_details]: {e}')
+            logging.error(f'[fetch_sender_details] {e}')
             return None, None
 
+    # Downloads the media file from the Telegram message.
     async def download_media_message(self, message):
         try:
             if IGNORE_VIDEO_FILES and message.media and isinstance(message.media, types.MessageMediaDocument):
                 logging.warning(f'Skipping video file: {message.id}')
                 return None
-        
+
             file_path = await message.download_media(file=temp_folder)
             return file_path
         
         except Exception as e:
-            logging.error(f'[in download_media_message]: {e}')
+            logging.error(f'[download_media_message] {e}')
             return None
 
+    # Uploads the message content and media file to Discord.
     async def upload_to_discord(self, file_path=None, content=None, sender_profile_pic_url=None, sender_name=None):
         try:
-            payload = {}
+            payload = {
+                'content': content,
+                'username': sender_name,
+                'avatar_url': sender_profile_pic_url
+            }
 
-            if content:
-                payload['content'] = content
-
-            if sender_name:
-                payload['username'] = sender_name
-
-            if sender_profile_pic_url:
-                payload['avatar_url'] = sender_profile_pic_url
-            
             if file_path is not None:
                 with open(file_path, 'rb') as file:
                     files = {'file': file}
@@ -125,91 +112,110 @@ class TelegramDiscordBot:
             else:
                 response = requests.post(discord_webhook_url, data=payload)
 
-            if response.status_code == 400:
-                logging.warning('[Ignoring message with no content or attachments]')
-
-            elif response.status_code not in (200, 204):
+            if response.status_code in {400, 403}:
+                logging.warning(f'[Ignoring message with no content or attachments] Status code: {response.status_code}, Response: {response.text}')
+            elif response.status_code not in {200, 204}:
                 logging.error(f'Failed to upload file to Discord. Status code: {response.status_code}, Response: {response.text}')
 
-            if file_path is not None:
+            if file_path is not None and os.path.exists(file_path):
                 os.remove(file_path)
-                
-        except Exception as e:
-            logging.error(f'[in upload_to_discord]: {e}')
 
-    async def download_and_upload_media(self):
+        except Exception as e:
+            logging.error(f'[upload_to_discord] {e}')
+
+    # Processes the Telegram message and uploads it to Discord.
+    async def process_message(self, message):
+        if isinstance(message, types.MessageService):
+            content = self.handle_service_message(message)
+        else:
+            content = message.text
+
+        if not content and not message.media:
+            return
+
+        file_path = await self.download_media_message(message) if message.media else None
+        sender_profile_pic_url, sender_name = await self.fetch_sender_details(message) if INCLUDE_USER_DATA else (None, None)
+
+        await self.upload_to_discord(file_path, content, sender_profile_pic_url, sender_name)
+        await asyncio.sleep(1)
+        self.save_last_processed_data(message.id)
+
+    # Handles service messages (e.g. user joined, user left, etc.)
+    def handle_service_message(self, message):
+        if message.action:
+            if isinstance(message.action, types.MessageActionChatAddUser):
+                users = [str(user_id) for user_id in message.action.users]
+                return f"User(s) {' '.join(users)} added to the chat."
+            
+            elif isinstance(message.action, types.MessageActionChatJoinedByLink):
+                return "A user joined the chat via an invite link."
+            
+            elif isinstance(message.action, types.MessageActionChatCreate):
+                return f"Chat created with title: {message.action.title}"
+            
+            elif isinstance(message.action, types.MessageActionChatDeleteUser):
+                return f"User {message.action.user_id} removed from the chat."
+
+    # Connects to Telegram, downloads messages, and uploads them to Discord.
+    async def run(self):
         logging.info('Connecting to Telegram...')
         await self.telegram_client.connect()
 
-        if not await self.telegram_client.is_user_authorized():
-            await self.telegram_client.send_code_request(telegram_phone)
-            await self.telegram_client.sign_in(telegram_phone, input('Enter the code you received on Telegram: '))
-        else:
-            logging.info('Telegram client is already authorized. Skipping authentication.')
-
-        logging.info('Fetching group entity...')
-
         try:
+            if not await self.telegram_client.is_user_authorized():
+                await self.telegram_client.send_code_request(telegram_phone)
+                await self.telegram_client.sign_in(telegram_phone, input('Enter the code you received on Telegram: '))
+            else:
+                logging.info('Telegram client is already authorized.')
+
             group_entity = await self.telegram_client.get_entity(telegram_group_id)
-            logging.info(f'Group entity fetched.')
+            logging.info('Group entity fetched.')
 
-        except Exception as e:
-            logging.error(f'[in download_and_upload_media]: [fetching group entity]: {e}')
-            await self.telegram_client.disconnect()
-            return
+            if SHOW_PROGRESS_BAR:
+                latest_message = await self.telegram_client.get_messages(group_entity, limit=1)
+                first_message = await self.telegram_client.get_messages(group_entity, limit=1, reverse=True)
 
-        if SHOW_PROGRESS_BAR:  # Maybe this is too much for a progress bar. 
-            latest_message = await self.telegram_client.get_messages(group_entity, limit=1)
-            first_message = await self.telegram_client.get_messages(group_entity, limit=1, reverse=True)
+                latest_message_id = latest_message[0].id if latest_message else 0
+                first_message_id = first_message[0].id if first_message else 0
+                
+                total_messages = max(latest_message_id - (self.last_processed_message_id or first_message_id), 1)
+                processed_messages = 0
 
-            latest_message_id = latest_message[0].id if latest_message else 0
-            first_message_id = first_message[0].id if first_message else 0
-            
-            total_messages = latest_message_id - (self.last_processed_message_id or first_message_id)
-            processed_messages = 0
-
-        try:
             async for message in self.telegram_client.iter_messages(group_entity, min_id=self.last_processed_message_id, reverse=True):
-                if UPLOAD_MESSAGES_WITH_MEDIA_ONLY and not message.media:
-                    continue
-
-                if message.media:
-                    file_path = await self.download_media_message(message)
-                else:
-                    file_path = None
-
-                if INCLUDE_USER_DATA:
-                    sender_profile_pic_url, sender_name = await self.fetch_sender_details(message)
-                else:
-                    sender_profile_pic_url, sender_name = None, None
-
-                await self.upload_to_discord(file_path, message.text, sender_profile_pic_url, sender_name)
-                await asyncio.sleep(1)
-
-                self.save_last_processed_data(message.id)
+                await self.process_message(message)
                 processed_messages += 1
 
                 if SHOW_PROGRESS_BAR:
-                    print(f'\rProcessed Messages: [{processed_messages} / {total_messages}]', end='')
+                    percantge = (processed_messages / total_messages) * 100
+                    print(f'\rProcessed Messages: [{processed_messages} / {total_messages}] [{percantge}%]', end='')
 
             if SHOW_PROGRESS_BAR:
                 print()
 
+        except errors.FloodWaitError as e:
+            logging.warning(f'Rate limited. Waiting for {e.seconds} seconds...')
+            await asyncio.sleep(e.seconds)
+
         except Exception as e:
-            logging.error(f'[in download_and_upload_media]: [message iteration]: {e}')
+            logging.error(f'[download_and_upload_media] {e}')
 
-        else:
-            if os.path.exists(temp_folder):
-                logging.info('Removing temp data...')
-                shutil.rmtree(temp_folder)
-
-            logging.info('[Program Finished. Disconnecting from Telegram]')
+        finally:
+            logging.info('Disconnecting from Telegram...')
             await self.telegram_client.disconnect()
-
-    async def run(self):
-        await self.download_and_upload_media()
 
 
 if __name__ == '__main__':
     bot = TelegramDiscordBot()
-    asyncio.run(bot.run())
+
+    try:
+        asyncio.run(bot.run())
+
+    except KeyboardInterrupt:
+        logging.info('Exiting... [Keyboard Interrupt]')
+
+    except Exception as e:
+        logging.error(f'Exiting... [Fatal Error]: {e}')
+        
+    else:
+        logging.info('Exisitng... [Program Finished.]')
+        shutil.rmtree('temp', ignore_errors=True)
