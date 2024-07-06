@@ -12,8 +12,10 @@ default_avatar_url = 'https://http.cat/404'  # Default avatar URL for users with
 IGNORE_VIDEO_FILES = False
 UPLOAD_MESSAGES_WITH_MEDIA_ONLY = False  # Set to True to only clone messages that have media attached
 INCLUDE_USER_DATA = True  # Set to True to include the sender's name and profile picture in the Discord message
-SHOW_PROGRESS_BAR = True  # Set to True to show a progress bar in terminal
-
+SHOW_PROGRESS_BAR = True  # Set to True to show an `estimate` progress bar.
+IGNORE_SYSTEM_MESSAGES = True  # Set to True to ignore system messages (e.g. user joined, user left, etc.)
+DISCORD_SLEEP_OFFSET = 2.0  # Time in seconds to wait after being rate limited by Discord. High value is recommended for large groups.
+TELEGRAM_SLEEP_OFFSET = 2.0  # Time in seconds to wait after being rate limited by Telegram. High value is recommended for large groups.
 
 # File Paths
 temp_folder = 'temp/'  # Folder to temporarily store temporary files

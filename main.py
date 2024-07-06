@@ -9,7 +9,7 @@ from discord import SyncWebhook, File
 from config import *
 
 
-logging.basicConfig(level=logging.WARNING)  # Change to logging.INFO for more detailed logs.
+logging.basicConfig(level=logging.INFO)  # Change to logging.WARNING for less detailed logs.
 
 
 os.makedirs('temp', exist_ok=True)
@@ -74,7 +74,7 @@ class TelegramDiscordBot:
                     self.discord_webhook.send(default_avatar_url, username=f"{username} joined the group.")
                     self.downloaded_profile_pics[sender_id] = default_avatar_url
 
-                await asyncio.sleep(1)
+                await asyncio.sleep(1.01)
 
             return self.downloaded_profile_pics[sender_id], username
         
@@ -96,7 +96,7 @@ class TelegramDiscordBot:
             logging.error(f'[download_media_message] {e}')
             return None
 
-    # Uploads the message content and media file to Discord.
+
     async def upload_to_discord(self, file_path=None, content=None, sender_profile_pic_url=None, sender_name=None):
         try:
             payload = {
@@ -105,17 +105,29 @@ class TelegramDiscordBot:
                 'avatar_url': sender_profile_pic_url
             }
 
-            if file_path is not None:
-                with open(file_path, 'rb') as file:
-                    files = {'file': file}
-                    response = requests.post(discord_webhook_url, files=files, data=payload)
-            else:
-                response = requests.post(discord_webhook_url, data=payload)
+            while True:
+                if file_path is not None:
+                    with open(file_path, 'rb') as file:
+                        files = {'file': file}
+                        response = requests.post(discord_webhook_url, files=files, data=payload)
+                else:
+                    response = requests.post(discord_webhook_url, data=payload)
 
-            if response.status_code in {400, 403}:
-                logging.warning(f'[Ignoring message with no content or attachments] Status code: {response.status_code}, Response: {response.text}')
-            elif response.status_code not in {200, 204}:
-                logging.error(f'Failed to upload file to Discord. Status code: {response.status_code}, Response: {response.text}')
+                if response.status_code == 429:
+                    retry_after = response.json().get('retry_after', 2)  # Default to 2 seconds if not provided
+                    logging.warning(f'Rate limited by Discord. Retrying after {retry_after} seconds...')
+                    asyncio.sleep(retry_after + DISCORD_SLEEP_OFFSET)
+
+                elif response.status_code in {400, 403}:
+                    logging.warning(f'[Ignoring message with no content or attachments] Status code: {response.status_code}, Response: {response.text}')
+                    break
+
+                elif response.status_code not in {200, 204}:
+                    logging.error(f'Failed to upload file to Discord. Status code: {response.status_code}, Response: {response.text}')
+                    break
+
+                else:
+                    break
 
             if file_path is not None and os.path.exists(file_path):
                 os.remove(file_path)
@@ -125,8 +137,9 @@ class TelegramDiscordBot:
 
     # Processes the Telegram message and uploads it to Discord.
     async def process_message(self, message):
-        if isinstance(message, types.MessageService):
+        if isinstance(message, types.MessageService) and not IGNORE_SYSTEM_MESSAGES:
             content = self.handle_service_message(message)
+
         else:
             content = message.text
 
@@ -137,24 +150,26 @@ class TelegramDiscordBot:
         sender_profile_pic_url, sender_name = await self.fetch_sender_details(message) if INCLUDE_USER_DATA else (None, None)
 
         await self.upload_to_discord(file_path, content, sender_profile_pic_url, sender_name)
-        await asyncio.sleep(1)
+        await asyncio.sleep(1.01)
         self.save_last_processed_data(message.id)
 
     # Handles service messages (e.g. user joined, user left, etc.)
     def handle_service_message(self, message):
         if message.action:
             if isinstance(message.action, types.MessageActionChatAddUser):
-                users = [str(user_id) for user_id in message.action.users]
-                return f"User(s) {' '.join(users)} added to the chat."
-            
-            elif isinstance(message.action, types.MessageActionChatJoinedByLink):
-                return "A user joined the chat via an invite link."
+                users = ', '.join([str(user_id) for user_id in message.action.users])
+                return f"`<<< SYSTEM >>>: {users} joined the chat.`"
             
             elif isinstance(message.action, types.MessageActionChatCreate):
-                return f"Chat created with title: {message.action.title}"
+                return f"`<<< SYSTEM >>>: Chat created with title: {message.action.title}`"
+            
+            
+            elif isinstance(message.action, types.MessageActionChatJoinedByLink):
+                return f"`<<< SYSTEM >>>: User joined the chat via invite link.`"
+            
             
             elif isinstance(message.action, types.MessageActionChatDeleteUser):
-                return f"User {message.action.user_id} removed from the chat."
+                return f"`<<< SYSTEM >>>: User was removed from the chat.`"
 
     # Connects to Telegram, downloads messages, and uploads them to Discord.
     async def run(self):
@@ -186,7 +201,7 @@ class TelegramDiscordBot:
                 processed_messages += 1
 
                 if SHOW_PROGRESS_BAR:
-                    percantge = (processed_messages / total_messages) * 100
+                    percantge = round((processed_messages / total_messages) * 100, 2)
                     print(f'\rProcessed Messages: [{processed_messages} / {total_messages}] [{percantge}%]', end='')
 
             if SHOW_PROGRESS_BAR:
@@ -194,7 +209,7 @@ class TelegramDiscordBot:
 
         except errors.FloodWaitError as e:
             logging.warning(f'Rate limited. Waiting for {e.seconds} seconds...')
-            await asyncio.sleep(e.seconds)
+            await asyncio.sleep(e.seconds + TELEGRAM_SLEEP_OFFSET)
 
         except Exception as e:
             logging.error(f'[download_and_upload_media] {e}')
