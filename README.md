@@ -1,6 +1,14 @@
 # TelegramDiscordClone
 
-TelegramDiscordClone is a Python project that utilizes discord.py and telethon libraries to clone messages, including media, from a Telegram group to a specified Discord channel. It achieves this by logging into a Telegram user account, temporarily downloading the messages in chronological order, and then sending them to Discord using a webhook.
+TelegramDiscordClone is a Python script that utilizes discord.py and telethon libraries to clone messages, including media, from a Telegram group to a specified Discord channel. It achieves this by logging into a Telegram user account, temporarily downloading the messages in chronological order, and then sending them to Discord using a webhook.
+
+## Key Features
+
+- Clones messages and media files by simply
+- Has configurable parameters such as `IGNORE_VIDEO_FILES`, `CLONE_MEDIA_ONLY`, `SHOW_USER_INFO` etc. (See (example)[config_example.py])
+- Temporarily stores the last porcessed message and media file, contiues from where it left if the program crashes / halts.
+- Uses (dummyimage)[https://dummyimage.com] to genearte dynamic profile pictures for people without a pfp. (Thanks to (Russell Heimlich)[https://dummyimage.com/#about] for providing this free tool)
+
 
 ## Installation
 
@@ -11,7 +19,7 @@ TelegramDiscordClone is a Python project that utilizes discord.py and telethon l
 
 1. Create a Discord channel and a webhook for that channel then obtain the link.
 2. Create a new Telegram app and obtain the API ID and API hash. (visit https://my.telegram.org)
-3. Create a `config.py` file in the root directory, put the obtained credentials and adjust the other parameters as needed. (see `config_example.py`)
+3. Create a `config.py` file in the root directory, put the obtained credentials and adjust the other parameters as needed. (See (example)[config_example.py])
 
 ## Usage
 

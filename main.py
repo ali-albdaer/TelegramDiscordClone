@@ -21,7 +21,18 @@ class TelegramDiscordBot:
         self.telegram_client = TelegramClient(f'{telegram_user}.session', api_id, api_hash)
         self.discord_webhook = SyncWebhook.from_url(discord_webhook_url)
         self.downloaded_profile_pics, self.last_processed_message_id = self.load_last_processed_data()
-    
+        self.rate_limit_count = 0
+
+    # Calculates how many seconds to sleep based on how many times the bot has been rate limited. (linearly increases.)
+    async def sleep(self, base_sleep_time):
+        self.rate_limit_count += 1
+        sleep_time = max(self.rate_limit_count * LINEAR_SLEEP_FACTOR, base_sleep_time)
+        logging.warning(f'Sleeping for {sleep_time} seconds due to rate limit...')
+        await asyncio.sleep(sleep_time)
+
+        if sleep_time == MAX_SLEEP_TIME:
+            self.rate_limit_count = 0
+
     # Ensures that the last processed message ID is saved in case of a program crash / halt.
     def save_last_processed_data(self, message_id):
         data = {
@@ -68,7 +79,7 @@ class TelegramDiscordBot:
                     self.downloaded_profile_pics[sender_id] = message.attachments[0].url
                     
                 else:
-                    fallback_avatar_url = f'https://dummyimage.com/128x128/{sender_id}/000000.png&text={username[0]}'
+                    fallback_avatar_url = f'https://dummyimage.com/640x640/{sender_id}/000000.png&text={username[0]}'
                     response = requests.get(fallback_avatar_url)
 
                     if response.status_code == 200:
@@ -92,16 +103,16 @@ class TelegramDiscordBot:
         try:
             if IGNORE_VIDEO_FILES and message.media and isinstance(message.media, types.MessageMediaDocument):
                 logging.warning(f'Skipping video file: {message.id}')
-                return None
+                return
 
             file_path = await message.download_media(file=temp_folder)
             return file_path
         
         except Exception as e:
             logging.error(f'[download_media_message] {e}')
-            return None
+            return
 
-
+    # Uploads the message content and media file to Discord.
     async def upload_to_discord(self, file_path=None, content=None, sender_profile_pic_url=None, sender_name=None):
         try:
             payload = {
@@ -119,9 +130,8 @@ class TelegramDiscordBot:
                     response = requests.post(discord_webhook_url, data=payload)
 
                 if response.status_code == 429:
-                    retry_after = response.json().get('retry_after', 2)  # Default to 2 seconds if not provided
-                    logging.warning(f'Rate limited by Discord. Retrying after {retry_after + SLEEP_OFFSET} seconds...')
-                    await asyncio.sleep(retry_after + SLEEP_OFFSET)
+                    retry_after = response.json().get('retry_after', 1)  # Default to 1 seconds if not provided
+                    await self.sleep(retry_after)
 
                 elif response.status_code in {400, 403}:
                     logging.warning(f'[Ignoring message with no content or attachments] Status code: {response.status_code}, Response: {response.text}')
@@ -150,9 +160,12 @@ class TelegramDiscordBot:
 
         if not content and not message.media:
             return
+        
+        if CLONE_MEDIA_ONLY and not message.media:
+            return
 
         file_path = await self.download_media_message(message) if message.media else None
-        sender_profile_pic_url, sender_name = await self.fetch_sender_details(message) if INCLUDE_USER_DATA else (None, None)
+        sender_profile_pic_url, sender_name = await self.fetch_sender_details(message) if SHOW_USER_INFO else (None, None)
 
         await self.upload_to_discord(file_path, content, sender_profile_pic_url, sender_name)
         await asyncio.sleep(1.01)
@@ -197,8 +210,6 @@ class TelegramDiscordBot:
 
                 latest_message_id = latest_message[0].id if latest_message else 0
                 first_message_id = first_message[0].id if first_message else 0
-                
-                total_messages = max(latest_message_id - (self.last_processed_message_id or first_message_id), 1)
                 processed_messages = 0
 
             batch_size = 100
@@ -220,14 +231,13 @@ class TelegramDiscordBot:
 
                     min_id = message.id
 
-                await asyncio.sleep(1.01)  # Slight delay to prevent rate limiting
+                await asyncio.sleep(1.01)
 
             if SHOW_PROGRESS_BAR:
                 print()
 
         except errors.FloodWaitError as e:
-            logging.warning(f'Rate limited by Telegram. Waiting for {e.seconds + SLEEP_OFFSET} seconds...')
-            await asyncio.sleep(e.seconds + SLEEP_OFFSET)
+            await self.sleep(e.seconds)
 
         except Exception as e:
             logging.error(f'[run] {e}')
