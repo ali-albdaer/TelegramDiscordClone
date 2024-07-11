@@ -156,7 +156,7 @@ class TelegramDiscordBot:
             content = self.handle_service_message(message)
 
         else:
-            content = message.text
+            content = message.text.encode('utf-8').decode('utf-8') if message.text else None
 
         if not content and not message.media:
             return
