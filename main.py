@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import asyncio
 import json
@@ -157,18 +158,27 @@ class TelegramDiscordBot:
 
         else:
             content = message.text.encode('utf-8').decode('utf-8') if message.text else None
-
-        if not content and not message.media:
-            return
         
         if CLONE_MEDIA_ONLY and not message.media:
+            return
+        
+        if content:
+            # Pattern for matching mentions, [name](tg://user?id=id) -> **name**
+            pattern = r'\[(.*?)\]\(tg://user\?id=(\d+)\)'
+            match = re.search(pattern, content)
+
+            if match:
+                name = match.group(1)
+                content = re.sub(pattern, f"**{name}**", content)
+
+        elif not message.media:
             return
 
         file_path = await self.download_media_message(message) if message.media else None
         sender_profile_pic_url, sender_name = await self.fetch_sender_details(message) if SHOW_USER_INFO else (None, None)
 
         await self.upload_to_discord(file_path, content, sender_profile_pic_url, sender_name)
-        await asyncio.sleep(1.01)
+        await asyncio.sleep(1.20)
         self.save_last_processed_data(message.id)
 
     # Handles service messages (e.g. user joined, user left, etc.)
