@@ -145,7 +145,7 @@ class TelegramDiscordBot:
                 else:
                     break
 
-            if file_path is not None and os.path.exists(file_path):
+            if file_path is not None and os.path.exists(file_path) and not KEEP_MEDIA_FILES:
                 os.remove(file_path)
 
         except Exception as e:
@@ -271,4 +271,6 @@ if __name__ == '__main__':
         
     else:
         logging.info('Exisitng... [Program Finished.]')
-        shutil.rmtree('temp', ignore_errors=True)
+        
+        if CLEAR_TEMP_FOLDER:
+            shutil.rmtree('temp', ignore_errors=True)

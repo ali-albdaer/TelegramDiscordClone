@@ -13,9 +13,11 @@ default_avatar_url = 'https://http.cat/404'  # Default avatar URL for users with
 # Parameters
 IGNORE_VIDEO_FILES = False
 CLONE_MEDIA_ONLY = False  # Only clone messages that have media attached.
+KEEP_MEDIA_FILES = False  # Keep media files downloaded on the machine. Set to False to immidiately delete them after sending to Discord.
 SHOW_USER_INFO = True  # Include the sender's name and profile picture in the Discord message.
 SHOW_PROGRESS_BAR = True  # Show an `estimate` progress bar in the console.
 IGNORE_SYSTEM_MESSAGES = True  # (e.g. user joined, user left, etc.)
+CLEAR_TEMP_FOLDER = False  # Set to True to clear temporary files after processing. It is recommended to keep this disabled, since it enables the script to resume, even when new messages are sent.
 
 
 # Rate Limiting
