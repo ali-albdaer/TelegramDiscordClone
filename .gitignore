@@ -3,6 +3,7 @@ __pycache__/
 *.session
 *.session-journal
 .env
+venv/
 temp/
 temp_dev/
 config.py
