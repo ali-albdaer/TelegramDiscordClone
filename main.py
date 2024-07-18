@@ -13,7 +13,7 @@ from config import *
 logging.basicConfig(level=logging.INFO)  # Change to logging.WARNING for less detailed logs.
 
 
-os.makedirs('temp', exist_ok=True)
+os.makedirs(temp_folder, exist_ok=True)
 os.makedirs(avatar_folder, exist_ok=True)
 
 
@@ -33,7 +33,7 @@ def load_credentials(development=False):
         discord_webhook_url = os.environ.get('DEVELOPMENT_DISCORD_WEBHOOK_URL') or discord_webhook_url
         telegram_group_id = os.environ.get('DEVELOPMENT_TELEGRAM_GROUP_ID') or telegram_group_id
 
-    return telegram_user, telegram_phone, api_id, api_hash, discord_webhook_url, telegram_group_id
+    return telegram_user, telegram_phone, api_id, api_hash, discord_webhook_url, int(telegram_group_id)
 
 
 class TelegramDiscordBot:
@@ -303,4 +303,4 @@ if __name__ == '__main__':
         logging.info('Exiting... [Program Finished.]')
         
         if CLEAR_TEMP_FOLDER:
-            shutil.rmtree('temp', ignore_errors=True)
+            shutil.rmtree(temp_folder, ignore_errors=True)

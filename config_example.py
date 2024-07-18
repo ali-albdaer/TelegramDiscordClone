@@ -1,7 +1,7 @@
 # Telegram & Discord Configuration
 
 
-# This set of credentials will be used if they are not provided in the environment variables. (e.g. os.environ['API_ID'])
+# This set of credentials will be used if they are not provided in the environment variables. 
 development = False  # Set to True to enable development mode. This will use the development Discord webhook and Telegram group ID.
 default_avatar_url = 'https://http.cat/404'  # Default avatar URL for users without a profile picture.
 
@@ -37,6 +37,6 @@ MAX_SLEEP_TIME = 60  # Maximum sleep time after rate limit (in seconds).
 
 
 # File Paths
-temp_folder = 'temp/'  # Folder to temporarily store temporary files
-avatar_folder = 'temp/avatars'  # Folder to store profile pictures
-temporary_data_file = 'temp/temp.json'  # File to store the last processed message ID
+temp_folder = 'temp_dev/' if development else 'temp'  # Folder to temporarily store temporary files
+avatar_folder = temp_folder + 'avatars'  # Folder to store profile pictures
+temporary_data_file = temp_folder + 'temp.json'  # File to store the last processed message ID

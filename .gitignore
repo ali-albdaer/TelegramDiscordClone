@@ -3,4 +3,5 @@ __pycache__/
 *.session
 *.session-journal
 temp/
+temp_dev/
 config.py
