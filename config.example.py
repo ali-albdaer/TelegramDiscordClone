@@ -3,8 +3,7 @@ development = False  # Set to True to enable development mode. This will use the
 default_avatar_url = 'https://http.cat/404'  # Default avatar URL for users without a profile picture.
 
 
-### CREDENTIALS ###
-
+"""" ### CREDENTIALS ###
 # Only configure these if you are not using environment variables. Everything outside of this block is still required.
 # Check `.env.example` for more information.
 
@@ -21,8 +20,7 @@ if development:
 else:
     telegram_group_id = -1234567891
     discord_webhook_url = 'https://discord.com/api/webhooks/your-main-webhook-url'
-
-### END OF CREDENTIALS ###
+"""
 
 
 # Flags
