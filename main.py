@@ -115,7 +115,7 @@ class TelegramDiscordBot:
 
                     self.discord_webhook.send(fallback_avatar_url, username=f"{username} Has No Profile Picture.")
 
-                await asyncio.sleep(1.01)
+                await asyncio.sleep(2.01)
 
             return self.downloaded_profile_pics[sender_id], username
         
@@ -153,6 +153,8 @@ class TelegramDiscordBot:
                         response = requests.post(discord_webhook_url, files=files, data=payload)
                 else:
                     response = requests.post(discord_webhook_url, data=payload)
+
+                await asyncio.sleep(2.01)
 
                 if response.status_code == 429:
                     retry_after = response.json().get('retry_after', 1)  # Default to 1 seconds if not provided
@@ -202,7 +204,6 @@ class TelegramDiscordBot:
         sender_profile_pic_url, sender_name = await self.fetch_sender_details(message) if SHOW_USER_INFO else (None, None)
 
         await self.upload_to_discord(file_path, content, sender_profile_pic_url, sender_name)
-        await asyncio.sleep(1.20)
         self.save_last_processed_data(message.id)
 
     # Handles service messages (e.g. user joined, user left, etc.)
@@ -264,8 +265,6 @@ class TelegramDiscordBot:
                             print(f'\rProcessed Messages: [{message.id - first_message_id} / {latest_message_id - first_message_id}] [{percentage}%]', end='')
 
                     min_id = message.id
-
-                await asyncio.sleep(1.01)
 
             if SHOW_PROGRESS_BAR:
                 print()
