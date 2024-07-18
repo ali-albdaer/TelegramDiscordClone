@@ -17,6 +17,25 @@ os.makedirs('temp', exist_ok=True)
 os.makedirs(avatar_folder, exist_ok=True)
 
 
+# Loads the Telegram API credentials from the environment variables. If they are not found, loads them from the config file instead.
+# Checks if the program is running in development mode and loads the corresponding credentials.
+def load_credentials(development=False):
+    global telegram_user, telegram_phone, api_id, api_hash, discord_webhook_url, telegram_group_id
+
+    telegram_user = os.environ.get('TELEGRAM_USER') or telegram_user
+    telegram_phone = os.environ.get('TELEGRAM_PHONE') or telegram_phone
+    api_id = os.environ.get('API_ID') or api_id
+    api_hash = os.environ.get('API_HASH') or api_hash
+    discord_webhook_url = os.environ.get('DISCORD_WEBHOOK_URL') or discord_webhook_url
+    telegram_group_id = os.environ.get('TELEGRAM_GROUP_ID') or telegram_group_id
+
+    if development:
+        discord_webhook_url = os.environ.get('DEVELOPMENT_DISCORD_WEBHOOK_URL') or discord_webhook_url
+        telegram_group_id = os.environ.get('DEVELOPMENT_TELEGRAM_GROUP_ID') or telegram_group_id
+
+    return telegram_user, telegram_phone, api_id, api_hash, discord_webhook_url, telegram_group_id
+
+
 class TelegramDiscordBot:
     def __init__(self):
         self.telegram_client = TelegramClient(f'{telegram_user}.session', api_id, api_hash)
@@ -41,7 +60,7 @@ class TelegramDiscordBot:
             'downloaded_profile_pics': {str(k): v for k, v in self.downloaded_profile_pics.items()}
         }
         with open(temporary_data_file, 'w') as file:
-            json.dump(data, file)
+            json.dump(data, file, indent=4)
 
     # Loads the last processed message ID and downloaded profile pictures from the temporary data file.
     def load_last_processed_data(self):
@@ -74,10 +93,15 @@ class TelegramDiscordBot:
                     photo = photos[0]
                     photo_file_name = f'{sender_id}.jpg'
                     photo_path = os.path.join(avatar_folder, photo_file_name)
+                    
                     if not os.path.exists(photo_path):
                         await self.telegram_client.download_media(photo, file=photo_path)
+
                     message = self.discord_webhook.send(file=File(photo_path), username=f"{username}'s Profile Picture", wait=True)
                     self.downloaded_profile_pics[sender_id] = message.attachments[0].url
+
+                    if not KEEP_USER_PFP:
+                        os.remove(photo_path)
                     
                 else:
                     fallback_avatar_url = f'https://dummyimage.com/640x640/{sender_id}/000000.png&text={username[0]}'
@@ -258,19 +282,26 @@ class TelegramDiscordBot:
 
 
 if __name__ == '__main__':
-    bot = TelegramDiscordBot()
+    try: 
+        telegram_user, telegram_phone, api_id, api_hash, discord_webhook_url, telegram_group_id = load_credentials(development)
+
+    except Exception as e:
+        logging.error(f'Failed to load credentials: {e}')
+        exit(1)
+
 
     try:
+        bot = TelegramDiscordBot()
         asyncio.run(bot.run())
 
     except KeyboardInterrupt:
-        logging.info('Exiting... [Keyboard Interrupt]')
+        logging.info('Exiting... [Keyboard Interrupt.]')
 
     except Exception as e:
         logging.error(f'Exiting... [Fatal Error]: {e}')
         
     else:
-        logging.info('Exisitng... [Program Finished.]')
+        logging.info('Exiting... [Program Finished.]')
         
         if CLEAR_TEMP_FOLDER:
             shutil.rmtree('temp', ignore_errors=True)
