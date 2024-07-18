@@ -19,14 +19,24 @@ TelegramDiscordClone is a Python script that utilizes discord.py and telethon li
 
 1. Create a Discord channel and a webhook for that channel then obtain the link.
 2. Create a new Telegram app and obtain the API ID and API hash. (visit https://my.telegram.org)
-3. Create a `config.py` file in the root directory, put the obtained credentials and adjust the other parameters as needed. (See [example](config_example.py))
+3. Create a `config.py` file in the root directory and adjust the parameters and flags as needed. (See [example](config.example.py))
+4. There are two options to store credentials:
+    - Define them in `config.py`. (See [example](config.example.py) for more info) OR 
+    - Secure: Use env variables. Requires `python-dotenv` (recommended) (See [example][.env.example.py] for more info):
+        ```python
+        pip install python-dotenv
+        ```
 
 ## Usage
 
-1. Run the `main.py` script: `python main.py`
+1. Run the `main.py` script:
+    ```python
+    python main.py
+    ```
 2. When used for the first time, the script will prompt you to log in to your Telegram account.
-3. Once logged in, it will start cloning the messages from the Telegram group.
-4. The cloned messages will be sent to the specified Discord channel via the webhook.
+3. Once logged in, it will start cloning the messages from the Telegram group. The cloned messages will be sent to the specified Discord channel via the webhook.
+4. The id of the last processed message and the links to the profile pictures of the users will be stored under the `temp_folder`.
+5. You may halt the program at any time and as long as the `temp_folder` is still there, the script will continue from where it left. The last sent message might get duplicated. It is recommended not to halt the program when a media file is being downloaded.
 
 ## DISCLAIMER
 

@@ -1,9 +1,12 @@
-# Telegram & Discord Configuration
 
-
-# This set of credentials will be used if they are not provided in the environment variables. 
 development = False  # Set to True to enable development mode. This will use the development Discord webhook and Telegram group ID.
 default_avatar_url = 'https://http.cat/404'  # Default avatar URL for users without a profile picture.
+
+
+### CREDENTIALS ###
+
+# Only configure these if you are not using environment variables. Everything outside of this block is still required.
+# Check `.env.example` for more information.
 
 telegram_user = 'example_user'
 telegram_phone = '+1234567890'
@@ -13,11 +16,13 @@ api_hash = 'abcdef1234567890'  # Telegram API Hash (visit my.telegram.org to get
 
 if development:
     telegram_group_id = -1234567890  # Telegram group ID (can be obtained using a bot like @userinfobot)
-    discord_webhook_url = 'https://discord.com/api/webhooks/your-webhook-url'  # Webhook URL for the backup channel.
+    discord_webhook_url = 'https://discord.com/api/webhooks/your-development-webhook-url'  # Webhook URL for the backup channel.
 
 else:
-    telegram_group_id = -1234567890  
-    discord_webhook_url = 'https://discord.com/api/webhooks/your-webhook-url'
+    telegram_group_id = -1234567891
+    discord_webhook_url = 'https://discord.com/api/webhooks/your-main-webhook-url'
+
+### END OF CREDENTIALS ###
 
 
 # Flags

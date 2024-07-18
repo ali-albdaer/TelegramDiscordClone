@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 *.session
 *.session-journal
+.env
 temp/
 temp_dev/
 config.py

@@ -18,20 +18,28 @@ os.makedirs(avatar_folder, exist_ok=True)
 
 
 # Loads the Telegram API credentials from the environment variables. If they are not found, loads them from the config file instead.
-# Checks if the program is running in development mode and loads the corresponding credentials.
 def load_credentials(development=False):
     global telegram_user, telegram_phone, api_id, api_hash, discord_webhook_url, telegram_group_id
+
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+
+    except ImportError:
+        logging.warning('python-dotenv is not installed, attempting to loading credentials from the environment variables...\nHint: Install it using `pip install python-dotenv`.')
 
     telegram_user = os.environ.get('TELEGRAM_USER') or telegram_user
     telegram_phone = os.environ.get('TELEGRAM_PHONE') or telegram_phone
     api_id = os.environ.get('API_ID') or api_id
     api_hash = os.environ.get('API_HASH') or api_hash
-    discord_webhook_url = os.environ.get('DISCORD_WEBHOOK_URL') or discord_webhook_url
-    telegram_group_id = os.environ.get('TELEGRAM_GROUP_ID') or telegram_group_id
 
     if development:
         discord_webhook_url = os.environ.get('DEVELOPMENT_DISCORD_WEBHOOK_URL') or discord_webhook_url
         telegram_group_id = os.environ.get('DEVELOPMENT_TELEGRAM_GROUP_ID') or telegram_group_id
+
+    else:
+        discord_webhook_url = os.environ.get('DISCORD_WEBHOOK_URL') or discord_webhook_url
+        telegram_group_id = os.environ.get('TELEGRAM_GROUP_ID') or telegram_group_id
 
     return telegram_user, telegram_phone, api_id, api_hash, discord_webhook_url, int(telegram_group_id)
 
